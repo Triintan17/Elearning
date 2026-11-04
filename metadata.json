@@ -1,0 +1,6 @@
+{
+  "name": "NusantaraEdu - Sistem E-Learning Sekolah Terintegrasi",
+  "description": "Platform e-learning sekolah modern, terintegrasi, dan interaktif dengan ruang kelas digital, materi video, kuis gamifikasi, grafik kompetensi, dan portal guru-siswa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

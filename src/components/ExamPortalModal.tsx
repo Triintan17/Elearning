@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, Award, CheckCircle, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Clock, Award, CheckCircle, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ExamPortalModalProps {
@@ -91,7 +91,16 @@ export const ExamPortalModal: React.FC<ExamPortalModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF5A26] border border-orange-200 text-xs font-bold transition-all shadow-2xs"
+              title="Kembali ke Beranda"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Kembali ke Beranda</span>
+              <span className="sm:hidden">Beranda</span>
+            </button>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-[#FF5A26] font-mono text-xs font-bold">
               <Clock className="w-3.5 h-3.5" />
               <span>{formatTimer(secondsLeft)}</span>

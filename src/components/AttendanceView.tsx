@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile } from '../types/index.ts';
+import { calculateClassAttendanceSummary } from '../utils/learningLogic.ts';
+import { CircularProgressBar } from './CircularProgressBar.tsx';
 
 interface AttendanceViewProps {
   currentUser: UserProfile;
@@ -214,6 +216,23 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser }) =
     } catch (e) {}
   };
 
+  const classSummary = calculateClassAttendanceSummary(classStudents);
+
+  const handleExportAttendanceCSV = () => {
+    let csv = "NIS,Nama Siswa,Status Kehadiran,Waktu Check-In,Keterangan\n";
+    classStudents.forEach((s) => {
+      csv += `${s.nis},"${s.name}",${s.status.toUpperCase()},"${s.time}","Semester Ganjil 2026/2027"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Rekap_Kehadiran_Kelas_XII_MIPA1_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredClass = classStudents.filter((s) =>
     s.name.toLowerCase().includes(classSearch.toLowerCase()) || s.nis.includes(classSearch)
   );
@@ -237,7 +256,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser }) =
           </p>
         </div>
 
-        {/* Quick Check-in CTA Button for Student */}
+        {/* Quick Check-in CTA Button for Student / Wali */}
         {!isTeacher && (
           <div className="flex items-center gap-3 shrink-0">
             {isCheckedInToday ? (
@@ -246,9 +265,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser }) =
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-extrabold text-emerald-900">Hadir Hari Ini</p>
+                  <p className="text-xs font-extrabold text-emerald-900">
+                    {currentUser.role === 'wali' ? 'Anak Terverifikasi Hadir' : 'Hadir Hari Ini'}
+                  </p>
                   <p className="text-[11px] font-mono text-emerald-700">Masuk: {checkInTime}</p>
                 </div>
+              </div>
+            ) : currentUser.role === 'wali' ? (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-4 py-3 rounded-2xl text-xs font-bold text-amber-800">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Menunggu Check-in Siswa</span>
               </div>
             ) : (
               <button
@@ -264,7 +290,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser }) =
               onClick={() => setShowPermissionModal(true)}
               className="px-4 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors"
             >
-              Ajukan Izin / Sakit
+              {currentUser.role === 'wali' ? 'Ajukan Surat Izin Anak' : 'Ajukan Izin / Sakit'}
             </button>
           </div>
         )}
@@ -280,52 +306,109 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser }) =
               <span>Tandai Hadir Semua</span>
             </button>
             <button
-              onClick={() => alert('Laporan rekap presensi kelas XII MIPA 1 berhasil diunduh (Format XLSX/PDF)!')}
+              onClick={handleExportAttendanceCSV}
               className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors flex items-center gap-1.5"
             >
-              <Download className="w-4 h-4" />
-              <span>Export Rekap</span>
+              <Download className="w-4 h-4 text-[#FF5A26]" />
+              <span>Export CSV Rekap</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* 2. Key Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Persentase Kehadiran</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl md:text-3xl font-extrabold text-[#FF5A26]">98.4%</span>
-            <span className="text-xs font-bold text-emerald-600">+1.2% bulan lalu</span>
+      {/* 2. Key Metrics Grid (Bento Style with Circular Progress) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Persentase Kehadiran with Circular Ring */}
+        <div className="glass-card glass-card-hover p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-orange-100/70 text-orange-700 border border-orange-200/50">
+              {isTeacher ? 'Kelas Rata-Rata' : 'Presensi Semester'}
+            </span>
+            <div className="flex items-baseline gap-1.5 pt-1">
+              <span className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                {isTeacher ? `${classSummary.attendancePercentage}%` : '98.4%'}
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+              <span>+1.2%</span> <span className="text-slate-400 font-normal">dari bulan lalu</span>
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1">Target minimal kelulusan KKM: 85%</p>
+
+          <CircularProgressBar
+            value={isTeacher ? classSummary.attendancePercentage : 98}
+            size={58}
+            strokeWidth={5}
+            color="#FF5A26"
+            trackColor="#FFE6D9"
+          />
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Hari Hadir</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl md:text-3xl font-extrabold text-slate-900">92</span>
-            <span className="text-xs text-slate-400">/ 94 hari sekolah</span>
+        {/* Metric 2: Siswa Hadir Hari Ini */}
+        <div className="glass-card glass-card-hover p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100/70 text-emerald-700 border border-emerald-200/50">
+              {isTeacher ? 'Siswa Hadir' : 'Total Hari Masuk'}
+            </span>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                {isTeacher ? classSummary.presentCount : '92'}
+              </span>
+              <span className="text-xs text-slate-400 font-medium">
+                {isTeacher ? `/ ${classSummary.totalStudents}` : '/ 94 hari'}
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-600 font-semibold">Tercatat Tepat Waktu</p>
           </div>
-          <p className="text-[11px] text-emerald-600 font-semibold pt-1">Status: Sangat Disiplin ⭐</p>
+
+          <CircularProgressBar
+            value={isTeacher ? Math.round((classSummary.presentCount / classSummary.totalStudents) * 100) : 97}
+            size={58}
+            strokeWidth={5}
+            color="#10B981"
+            trackColor="#D1FAE5"
+          />
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Izin & Dispensasi</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl md:text-3xl font-extrabold text-amber-500">2</span>
-            <span className="text-xs text-slate-400">kali izin resmi</span>
+        {/* Metric 3: Izin & Dispensasi */}
+        <div className="glass-card glass-card-hover p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100/70 text-amber-700 border border-amber-200/50">
+              {isTeacher ? 'Izin / Sakit' : 'Izin & Sakit'}
+            </span>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl md:text-3xl font-black text-amber-600 tracking-tight">
+                {isTeacher ? classSummary.permittedCount + classSummary.sickCount : '2'}
+              </span>
+              <span className="text-xs text-slate-400 font-medium">
+                {isTeacher ? 'siswa' : 'kali izin'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">Surat terverifikasi</p>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1">Semua surat izin terverifikasi</p>
+
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 font-black text-sm">
+            <FileText className="w-6 h-6" />
+          </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Alpha / Tanpa Keterangan</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl md:text-3xl font-extrabold text-emerald-600">0</span>
-            <span className="text-xs text-slate-400">alpa</span>
+        {/* Metric 4: Tanpa Keterangan (Alpha) */}
+        <div className="glass-card glass-card-hover p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              {isTeacher ? 'Alpa / Terlambat' : 'Alpha (Nir-izin)'}
+            </span>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl md:text-3xl font-black text-emerald-600 tracking-tight">
+                {isTeacher ? classSummary.absentCount : '0'}
+              </span>
+              <span className="text-xs text-slate-400 font-medium">pelanggaran</span>
+            </div>
+            <p className="text-[11px] text-emerald-600 font-semibold">Catatan 100% Bersih ⭐</p>
           </div>
-          <p className="text-[11px] text-emerald-600 font-semibold pt-1">Catatan disiplin bersih</p>
+
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 font-black text-sm">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
         </div>
       </div>
 

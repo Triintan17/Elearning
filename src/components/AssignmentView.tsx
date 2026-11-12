@@ -9,9 +9,17 @@ import {
   Send,
   X,
   Plus,
+  FileText,
+  Upload,
+  CheckCircle2,
+  Trash2,
+  Sliders,
+  HelpCircle,
+  BookOpen,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Assignment, UserProfile } from '../types/index.ts';
+import { calculateRubricScore, RubricCriteria } from '../utils/learningLogic.ts';
 
 interface AssignmentViewProps {
   assignments: Assignment[];
@@ -31,17 +39,24 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
   const [filter, setFilter] = useState<'all' | 'pending' | 'submitted' | 'graded'>('all');
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [submissionText, setSubmissionText] = useState('');
-  const [fileName, setFileName] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; type: string } | null>(null);
 
-  // Teacher grading state
-  const [gradingScore, setGradingScore] = useState(90);
-  const [gradingFeedback, setGradingFeedback] = useState('Analisis sangat baik dan runut.');
+  // Teacher grading rubric state
+  const [rubric, setRubric] = useState<RubricCriteria>({
+    concept: 36,
+    method: 27,
+    neatness: 27,
+  });
+  const [gradingFeedback, setGradingFeedback] = useState('Analisis sangat baik, runtut, dan tepat rumus.');
 
   // Teacher new task state
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newSubject, setNewSubject] = useState('Matematika Peminatan XII');
+  const [newDueDate, setNewDueDate] = useState('14 Nov 2026, 23:59 WIB');
   const [newDesc, setNewDesc] = useState('');
+
+  const currentRubricResult = calculateRubricScore(rubric);
 
   const filtered = assignments.filter((item) => {
     if (filter === 'pending') return item.status === 'belum_dikumpulkan';
@@ -54,10 +69,14 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
     e.preventDefault();
     if (!selectedAssignment || !submissionText.trim()) return;
 
-    onSubmitAssignment(selectedAssignment.id, submissionText);
+    const fullSubmission = uploadedFile
+      ? `[Berkas Terlampir: ${uploadedFile.name} (${uploadedFile.size})]\n\nCatatan Siswa:\n${submissionText}`
+      : submissionText;
+
+    onSubmitAssignment(selectedAssignment.id, fullSubmission);
     try {
       confetti({
-        particleCount: 70,
+        particleCount: 75,
         spread: 60,
         origin: { y: 0.6 },
         colors: ['#FF5A26', '#10B981', '#3B82F6'],
@@ -66,14 +85,23 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
 
     setSelectedAssignment(null);
     setSubmissionText('');
-    setFileName('');
+    setUploadedFile(null);
   };
 
   const handleTeacherGrade = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAssignment) return;
 
-    onGradeAssignment(selectedAssignment.id, Number(gradingScore), gradingFeedback);
+    const finalFeedbackWithRubric = `${gradingFeedback} (Rubrik: Konsep ${rubric.concept}/40, Langkah ${rubric.method}/30, Kerapian ${rubric.neatness}/30 - Predikat: ${currentRubricResult.predicate})`;
+    onGradeAssignment(selectedAssignment.id, currentRubricResult.totalScore, finalFeedbackWithRubric);
+    try {
+      confetti({
+        particleCount: 50,
+        spread: 50,
+        origin: { y: 0.5 },
+        colors: ['#10B981', '#FF5A26'],
+      });
+    } catch (e) {}
     setSelectedAssignment(null);
   };
 
@@ -86,10 +114,10 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
       title: newTitle.trim(),
       subject: newSubject,
       teacher: currentUser.name,
-      dueDate: '14 Nov 2026, 23:59 WIB',
+      dueDate: newDueDate,
       maxScore: 100,
       status: 'belum_dikumpulkan',
-      description: newDesc.trim() || 'Kerjakan latihan soal berikut secara mandiri dan unggah resume jawabannya.',
+      description: newDesc.trim() || 'Kerjakan modul latihan soal berikut secara mandiri dan unggah resume jawabannya.',
     };
 
     onAddNewAssignment(created);
@@ -99,19 +127,20 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-6 md:p-8 rounded-3xl border border-white/80 shadow-xs">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-            Portal Tugas & Penilaian Akademik
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <FolderKanban className="w-5 h-5 text-[#FF5A26]" />
+            Pusat Pengumpulan Tugas & Penilaian Interaktif
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Kumpulkan tugas harian, ikuti kuis terjadwal, dan pantau umpan balik guru.
+            Pengumpulan berkas digital, batas tenggat waktu real-time, dan transparansi rubrik penilaian guru.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {currentUser.role === 'guru' && (
             <button
               onClick={() => setShowNewTaskModal(true)}
@@ -122,7 +151,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
             </button>
           )}
 
-          {/* Interactive filter tabs */}
+          {/* Filter tabs */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setFilter('all')}
@@ -142,7 +171,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Belum Dikumpul
+              Belum Kumpul
             </button>
             <button
               onClick={() => setFilter('graded')}
@@ -160,30 +189,37 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
 
       {/* Assignment Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((item) => {
+        {filtered.map((item, idx) => {
           let statusBadge = (
-            <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1">
+            <span className="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" /> Belum Dikumpulkan
             </span>
           );
           if (item.status === 'menunggu_dinilai') {
             statusBadge = (
-              <span className="text-[11px] font-bold text-blue-600 flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" /> Menunggu Penilaian Guru
+              <span className="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Menunggu Penilaian
               </span>
             );
           } else if (item.status === 'selesai_dinilai') {
             statusBadge = (
-              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                 <CheckCircle className="w-3.5 h-3.5" /> Nilai: {item.score}/100
               </span>
             );
           }
 
+          // Urgency tag based on index
+          const urgencyBadge = item.status === 'belum_dikumpulkan' && (
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-orange-100 text-orange-700">
+              {idx === 0 ? '🔥 Mendesak (H-1)' : '⏳ Tersisa 3 Hari'}
+            </span>
+          );
+
           return (
             <div
               key={item.id}
-              className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
+              className="glass-card glass-card-hover rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -193,39 +229,48 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
                   {statusBadge}
                 </div>
 
-                <h3 className="text-sm font-extrabold text-slate-900 leading-snug">
-                  {item.title}
-                </h3>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <h3 className="text-sm font-extrabold text-slate-900 leading-snug">
+                    {item.title}
+                  </h3>
+                  {urgencyBadge}
+                </div>
+
                 <p className="text-xs text-slate-500 font-medium mt-1">
-                  Pengajar: {item.teacher}
+                  Guru: {item.teacher}
                 </p>
 
-                <p className="text-xs text-slate-600 mt-3 line-clamp-3 leading-relaxed">
+                <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
                   {item.description}
                 </p>
 
                 {item.teacherFeedback && (
-                  <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-slate-700">
-                    <p className="font-bold text-emerald-800 text-[10px] uppercase">
-                      Catatan Evaluasi Guru:
+                  <div className="mt-3 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-100 text-xs text-slate-700">
+                    <p className="font-bold text-emerald-800 text-[10px] uppercase flex items-center gap-1">
+                      <Award className="w-3 h-3 text-emerald-600" /> Hasil Evaluasi & Rubrik:
                     </p>
-                    <p className="mt-0.5 text-emerald-900">{item.teacherFeedback}</p>
+                    <p className="mt-1 text-emerald-950 font-medium leading-relaxed">{item.teacherFeedback}</p>
                   </div>
                 )}
               </div>
 
               <div className="mt-5 pt-3 border-t border-slate-50 flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Batas: {item.dueDate}</span>
+                <span className="text-slate-400 font-medium flex items-center gap-1 text-[11px]">
+                  <Clock className="w-3 h-3" /> {item.dueDate}
+                </span>
 
                 <button
-                  onClick={() => setSelectedAssignment(item)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#FFF3EB] hover:bg-[#FFE6D9] text-[#FF5A26] font-bold transition-colors"
+                  onClick={() => {
+                    setSelectedAssignment(item);
+                    setSubmissionText(item.studentAnswer || '');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#FFF3EB] hover:bg-[#FFE6D9] text-[#FF5A26] font-bold transition-colors text-xs"
                 >
                   {currentUser.role === 'guru'
-                    ? 'Koreksi & Nilai'
+                    ? 'Koreksi Rubrik'
                     : item.status === 'belum_dikumpulkan'
                     ? 'Kumpulkan Tugas'
-                    : 'Lihat Jawaban'}
+                    : 'Lihat Detail'}
                 </button>
               </div>
             </div>
@@ -236,7 +281,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
       {/* Modal: Submission or Teacher Grading */}
       {selectedAssignment && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between pb-4 border-b border-slate-100">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF5A26]">
@@ -245,6 +290,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
                 <h3 className="text-base font-extrabold text-slate-900 mt-1">
                   {selectedAssignment.title}
                 </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Tenggat: {selectedAssignment.dueDate}</p>
               </div>
               <button
                 onClick={() => setSelectedAssignment(null)}
@@ -256,109 +302,115 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
 
             <div className="py-4 space-y-4 text-xs text-slate-600">
               <div>
-                <h4 className="font-bold text-slate-800 mb-1">Instruksi Tugas:</h4>
-                <p className="bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1">
+                  <BookOpen className="w-3.5 h-3.5 text-orange-500" /> Instruksi & Kisi-kisi Pengerjaan:
+                </h4>
+                <p className="bg-slate-50 p-3 rounded-2xl border border-slate-100 leading-relaxed text-slate-700">
                   {selectedAssignment.description}
                 </p>
               </div>
 
-              {/* Form Siswa */}
-              {currentUser.role === 'siswa' && (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="font-bold text-slate-800 block mb-1">
-                      Jawaban / Penjelasan Siswa:
-                    </label>
-                    <textarea
-                      value={submissionText}
-                      onChange={(e) => setSubmissionText(e.target.value)}
-                      placeholder="Tuliskan uraian solusi, link dokumen, atau penjelasan tugas Anda..."
-                      rows={4}
-                      required
-                      className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#FF5A26] text-xs"
-                    />
-                  </div>
+              {/* Rubric Breakdown Info for Students */}
+              <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100">
+                <h5 className="font-bold text-blue-900 mb-1 flex items-center gap-1.5 text-xs">
+                  <Sliders className="w-3.5 h-3.5 text-blue-600" /> Rubrik Penilaian Standar Guru:
+                </h5>
+                <ul className="grid grid-cols-3 gap-2 text-[11px] text-blue-800 mt-2">
+                  <li className="bg-white p-2 rounded-xl border border-blue-100 text-center">
+                    <span className="block font-bold">40% Konsep</span>
+                    <span className="text-slate-500 text-[10px]">Ketepatan Teori</span>
+                  </li>
+                  <li className="bg-white p-2 rounded-xl border border-blue-100 text-center">
+                    <span className="block font-bold">30% Metode</span>
+                    <span className="text-slate-500 text-[10px]">Langkah Hitung</span>
+                  </li>
+                  <li className="bg-white p-2 rounded-xl border border-blue-100 text-center">
+                    <span className="block font-bold">30% Kerapian</span>
+                    <span className="text-slate-500 text-[10px]">Format & Bahasa</span>
+                  </li>
+                </ul>
+              </div>
 
-                  <div>
-                    <label className="font-bold text-slate-800 block mb-1">
-                      Unggah Lampiran (PDF / Gambar / Kode):
-                    </label>
-                    <div className="border-2 border-dashed border-slate-200 hover:border-[#FF5A26] rounded-2xl p-4 text-center cursor-pointer bg-slate-50">
-                      <FileUp className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-                      <p className="text-slate-600 font-semibold">
-                        {fileName || 'Klik untuk memilih berkas laporan tugas'}
-                      </p>
+              {/* Teacher Mode: Grading Form with Live Rubric Sliders */}
+              {currentUser.role === 'guru' ? (
+                <form onSubmit={handleTeacherGrade} className="space-y-4 pt-2">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs">Rubrik Penilaian Objektif:</span>
+                      <span className="text-xs font-extrabold text-[#FF5A26] bg-orange-100 px-3 py-1 rounded-full">
+                        Skor Total: {currentRubricResult.totalScore}/100 ({currentRubricResult.letterGrade})
+                      </span>
+                    </div>
+
+                    {/* Criteria 1 */}
+                    <div>
+                      <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                        <span>1. Pemahaman Konsep & Ketepatan Rumus (Max 40)</span>
+                        <span className="text-orange-600 font-bold">{rubric.concept} Poin</span>
+                      </div>
                       <input
-                        type="file"
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            setFileName(e.target.files[0].name);
-                          }
-                        }}
-                        className="hidden"
-                        id="asg-file-upload"
+                        type="range"
+                        min="0"
+                        max="40"
+                        value={rubric.concept}
+                        onChange={(e) => setRubric({ ...rubric, concept: Number(e.target.value) })}
+                        className="w-full accent-orange-500 cursor-pointer"
                       />
-                      <label
-                        htmlFor="asg-file-upload"
-                        className="mt-1 inline-block text-[11px] text-[#FF5A26] font-bold cursor-pointer hover:underline"
-                      >
-                        Pilih file dari perangkat
-                      </label>
+                    </div>
+
+                    {/* Criteria 2 */}
+                    <div>
+                      <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                        <span>2. Sistematika & Langkah Pengerjaan (Max 30)</span>
+                        <span className="text-orange-600 font-bold">{rubric.method} Poin</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="30"
+                        value={rubric.method}
+                        onChange={(e) => setRubric({ ...rubric, method: Number(e.target.value) })}
+                        className="w-full accent-orange-500 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Criteria 3 */}
+                    <div>
+                      <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                        <span>3. Kerapian, Format, & Orisinalitas (Max 30)</span>
+                        <span className="text-orange-600 font-bold">{rubric.neatness} Poin</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="30"
+                        value={rubric.neatness}
+                        onChange={(e) => setRubric({ ...rubric, neatness: Number(e.target.value) })}
+                        className="w-full accent-orange-500 cursor-pointer"
+                      />
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAssignment(null)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl bg-[#FF5A26] hover:bg-[#E84E1D] text-white font-bold flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Kirim Jawaban Sekarang</span>
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Form Guru (Koreksi) */}
-              {currentUser.role === 'guru' && (
-                <form onSubmit={handleTeacherGrade} className="space-y-4">
+                  {/* Student Answer Review */}
                   {selectedAssignment.studentAnswer && (
-                    <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100">
-                      <p className="font-bold text-[#FF5A26] mb-1">Jawaban yang Dikumpulkan Siswa:</p>
-                      <p className="text-slate-800">{selectedAssignment.studentAnswer}</p>
+                    <div>
+                      <h4 className="font-bold text-slate-800 mb-1">Jawaban yang Diserahkan Siswa:</h4>
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 font-mono text-xs text-slate-700 whitespace-pre-wrap">
+                        {selectedAssignment.studentAnswer}
+                      </div>
                     </div>
                   )}
 
                   <div>
                     <label className="font-bold text-slate-800 block mb-1">
-                      Nilai Angka (Skala 0 - 100):
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={gradingScore}
-                      onChange={(e) => setGradingScore(Number(e.target.value))}
-                      className="w-32 p-2.5 rounded-xl border border-slate-200 font-bold text-slate-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-800 block mb-1">
-                      Catatan Evaluasi / Feedback Guru:
+                      Catatan Evaluasi & Umpan Balik Guru:
                     </label>
                     <textarea
+                      rows={3}
                       value={gradingFeedback}
                       onChange={(e) => setGradingFeedback(e.target.value)}
-                      rows={3}
-                      className="w-full p-3 rounded-xl border border-slate-200 text-xs"
+                      placeholder="Tuliskan apresiasi, koreksi rumus, atau saran belajar..."
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:border-[#FF5A26]"
                     />
                   </div>
 
@@ -366,16 +418,103 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setSelectedAssignment(null)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-xs"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-sm"
+                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
                     >
-                      <Award className="w-3.5 h-3.5" />
-                      <span>Simpan & Terbitkan Nilai</span>
+                      <CheckCircle2 className="w-4 h-4" />
+                      Simpan Nilai ({currentRubricResult.totalScore}/100)
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Student Submission Form with File Upload Simulation */
+                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                  <div>
+                    <label className="font-bold text-slate-800 block mb-1">
+                      Unggah Berkas Lembar Jawaban (PDF / Word / ZIP / Foto):
+                    </label>
+
+                    {uploadedFile ? (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-emerald-600" />
+                          <div>
+                            <p className="text-xs font-bold text-emerald-900">{uploadedFile.name}</p>
+                            <p className="text-[10px] text-emerald-700">{uploadedFile.size} · Terverifikasi Siap Diunggah</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUploadedFile(null)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-slate-200 hover:border-orange-400 rounded-2xl p-4 text-center bg-slate-50 hover:bg-orange-50/30 transition cursor-pointer">
+                        <Upload className="w-6 h-6 mx-auto text-slate-400 mb-1" />
+                        <p className="text-xs font-bold text-slate-700">Tarik berkas tugas Anda ke sini atau klik untuk pilih</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Mendukung format PDF, DOCX, ZIP, JPG hingga 25 MB</p>
+
+                        <input
+                          type="file"
+                          id="student-file-input"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              const f = e.target.files[0];
+                              setUploadedFile({
+                                name: f.name,
+                                size: `${(f.size / 1024).toFixed(1)} KB`,
+                                type: f.type || 'Dokumen Tugas',
+                              });
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="student-file-input"
+                          className="inline-block mt-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-orange-600 hover:bg-orange-50 cursor-pointer shadow-2xs"
+                        >
+                          Pilih Berkas dari Komputer / HP
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-800 block mb-1">
+                      Catatan / Penjelasan Ringkas Jawaban:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={submissionText}
+                      onChange={(e) => setSubmissionText(e.target.value)}
+                      placeholder="Tuliskan rangkuman langkah pengerjaan atau keterangan nomor soal yang telah selesai..."
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:border-[#FF5A26]"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAssignment(null)}
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-xs"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl bg-[#FF5A26] hover:bg-[#E84E1D] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Send className="w-4 h-4" />
+                      Kirim Tugas Sekarang
                     </button>
                   </div>
                 </form>
@@ -385,13 +524,13 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
         </div>
       )}
 
-      {/* Modal Buat Tugas Baru (Mode Guru) */}
+      {/* Modal: Teacher Create New Task */}
       {showNewTaskModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-extrabold text-slate-900">
-                Buat Tugas Baru untuk Kelas
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#FF5A26]" /> Buat Penugasan Baru untuk Siswa
               </h3>
               <button
                 onClick={() => setShowNewTaskModal(false)}
@@ -401,57 +540,70 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewTask} className="py-4 space-y-3 text-xs">
+            <form onSubmit={handleCreateNewTask} className="py-4 space-y-4 text-xs text-slate-700">
               <div>
-                <label className="font-bold text-slate-800 block mb-1">Judul Tugas / Ujian:</label>
+                <label className="font-bold block mb-1">Judul Tugas:</label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Contoh: Tugas 05: Simulasi Persamaan Diferensial"
+                  placeholder="Contoh: Modul 5: Turunan Parsial & Titik Stasioner"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs"
                   required
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#FF5A26]"
                 />
               </div>
 
-              <div>
-                <label className="font-bold text-slate-800 block mb-1">Mata Pelajaran:</label>
-                <select
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#FF5A26]"
-                >
-                  <option value="Matematika Peminatan XII">Matematika Peminatan XII</option>
-                  <option value="Fisika Terapan XII">Fisika Terapan XII</option>
-                  <option value="Informatika & Web XII">Informatika & Web XII</option>
-                  <option value="Biologi Molekuler XII">Biologi Molekuler XII</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Mata Pelajaran:</label>
+                  <select
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs"
+                  >
+                    <option value="Matematika Peminatan XII">Matematika Peminatan XII</option>
+                    <option value="Fisika Gelombang & Optika">Fisika Gelombang & Optika</option>
+                    <option value="Biologi Molekuler">Biologi Molekuler</option>
+                    <option value="Informatika & Pemrograman">Informatika & Pemrograman</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold block mb-1">Batas Tenggat (Deadline):</label>
+                  <input
+                    type="text"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-800 block mb-1">Instruksi Soal:</label>
+                <label className="font-bold block mb-1">Deskripsi Tugas & Kriteria:</label>
                 <textarea
+                  rows={3}
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Ketik rincian tugas dan kriteria penilaian..."
-                  rows={4}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#FF5A26]"
+                  placeholder="Sebutkan langkah pengerjaan, bab buku panduan, atau ketentuan file upload..."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs"
+                  required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowNewTaskModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-xs"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#FF5A26] hover:bg-[#E84E1D] text-white font-bold shadow-sm"
+                  className="px-6 py-2.5 rounded-xl bg-[#FF5A26] hover:bg-[#E84E1D] text-white font-bold text-xs shadow-sm"
                 >
-                  Terbitkan ke Kelas
+                  Terbitkan Tugas
                 </button>
               </div>
             </form>

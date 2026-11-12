@@ -14,6 +14,8 @@ export interface UserProfile {
   totalCoursesInProgress: number;
   totalCoursesCompleted: number;
   weeklyWatchTimeHours: number;
+  childName?: string;
+  childNis?: string;
 }
 
 export interface QuizQuestion {
@@ -113,3 +115,63 @@ export interface ChatMessage {
   time: string;
   isCurrent?: boolean;
 }
+
+export interface AttendanceRecord {
+  id: string;
+  date: string;
+  day: string;
+  timeIn: string;
+  timeOut: string;
+  status: 'Hadir' | 'Izin' | 'Sakit' | 'Alpa' | 'hadir' | 'izin' | 'sakit' | 'alpa';
+  location: string;
+  notes?: string;
+}
+
+export interface CommunityAnswer {
+  id: string;
+  authorName: string;
+  authorRole: UserRole;
+  authorAvatar: string;
+  createdAt: string;
+  content: string;
+  upvotes: number;
+  isVerifiedByTeacher?: boolean;
+}
+
+export interface CommunityQuestion {
+  id: string;
+  title: string;
+  subject: string;
+  authorName: string;
+  authorRole: UserRole;
+  authorAvatar: string;
+  createdAt: string;
+  content: string;
+  tags: string[];
+  upvotes: number;
+  answers: CommunityAnswer[];
+  isSolved: boolean;
+}
+
+export interface PtnTarget {
+  id: string;
+  university: string;
+  shortName: string;
+  major: string;
+  cluster: 'Saintek' | 'Soshum';
+  passingGradeEstimated: number;
+  competitiveness: 'Sangat Tinggi' | 'Tinggi' | 'Sedang';
+  quota: number;
+  badgeColor: string;
+}
+
+export interface PtnSimulationResult {
+  target: PtnTarget;
+  userAverage: number;
+  probabilityPercent: number;
+  status: 'Aman / Peluang Tinggi' | 'Kompetitif / Cukup Peluang' | 'Perlu Peningkatan / Ketat';
+  gapScore: number;
+  recommendedSubjects: string[];
+}
+
+

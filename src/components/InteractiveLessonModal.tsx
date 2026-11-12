@@ -11,6 +11,7 @@ import {
   Send,
   Check,
   ChevronRight,
+  ArrowLeft,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Course, Lesson } from '../types/index.ts';
@@ -193,13 +194,24 @@ export const InteractiveLessonModal: React.FC<InteractiveLessonModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            aria-label="Tutup kelas interaktif"
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF5A26] border border-orange-200 text-xs font-bold transition-all shadow-2xs"
+              title="Kembali ke Beranda"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Kembali ke Beranda</span>
+              <span className="sm:hidden">Beranda</span>
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="Tutup kelas interaktif"
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   LayoutDashboard,
   BookOpen,
@@ -7,13 +6,21 @@ import {
   FolderKanban,
   Award,
   CalendarCheck,
+  Calendar,
   Flame,
   MessageSquare,
   Settings,
   Sparkles,
   ArrowUpRight,
   X,
+  Compass,
+  ShieldCheck,
+  HelpCircle,
+  Users,
+  GraduationCap,
+  LogOut,
 } from 'lucide-react';
+import { UserRole } from '../types/index.ts';
 
 interface SidebarProps {
   currentTab: string;
@@ -22,6 +29,8 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onOpenExamPortal: () => void;
+  userRole?: UserRole;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,19 +40,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   onOpenExamPortal,
+  userRole = 'siswa',
+  onLogout,
 }) => {
-  const menuItems = [
+  let menuItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'calendar', label: 'Jadwal & Kalender', icon: Calendar },
     { id: 'lessons', label: 'Mata Pelajaran', icon: BookOpen },
+    { id: 'community', label: 'Forum Komunitas', icon: Users },
+    { id: 'ptn-report', label: 'Prediksi PTN & Rapor', icon: GraduationCap },
     { id: 'assignments', label: 'Tugas & Ujian', icon: FolderKanban },
     { id: 'attendance', label: 'Presensi Siswa', icon: CalendarCheck },
     { id: 'achievements', label: 'Pencapaian & Badge', icon: Flame },
+    { id: 'lab', label: 'Lab Virtual Sains', icon: Compass },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'skill-graph', label: 'Skill Graph', icon: Activity },
     { id: 'certificates', label: 'Sertifikat', icon: Award },
     { id: 'messages', label: 'Pesan', icon: MessageSquare, badge: unreadCount },
+    { id: 'docs', label: 'Buku Panduan', icon: HelpCircle },
     { id: 'settings', label: 'Pengaturan', icon: Settings },
   ];
+
+  if (userRole === 'guru') {
+    menuItems = [
+      { id: 'overview', label: 'Overview Kelas', icon: LayoutDashboard },
+      { id: 'calendar', label: 'Jadwal & Kalender', icon: Calendar },
+      { id: 'lessons', label: 'Mata Pelajaran', icon: BookOpen },
+      { id: 'community', label: 'Moderasi Forum', icon: Users },
+      { id: 'ptn-report', label: 'Rekap Rapor & PTN', icon: GraduationCap },
+      { id: 'assignments', label: 'Evaluasi Tugas', icon: FolderKanban },
+      { id: 'attendance', label: 'Presensi Kelas', icon: CalendarCheck },
+      { id: 'lab', label: 'Lab Virtual Sains', icon: Compass },
+      { id: 'leaderboard', label: 'Leaderboard Siswa', icon: Trophy },
+      { id: 'skill-graph', label: 'Skill Graph', icon: Activity },
+      { id: 'messages', label: 'Konsultasi Siswa', icon: MessageSquare, badge: unreadCount },
+      { id: 'docs', label: 'Buku Panduan', icon: HelpCircle },
+      { id: 'settings', label: 'Pengaturan', icon: Settings },
+    ];
+  } else if (userRole === 'wali') {
+    menuItems = [
+      { id: 'parent-portal', label: 'Portal Orang Tua', icon: ShieldCheck },
+      { id: 'ptn-report', label: 'Prediksi PTN & Rapor', icon: GraduationCap },
+      { id: 'calendar', label: 'Jadwal Kelas Anak', icon: Calendar },
+      { id: 'attendance', label: 'Presensi & Jam Masuk', icon: CalendarCheck },
+      { id: 'skill-graph', label: 'Rapor Nilai & Radar', icon: Activity },
+      { id: 'messages', label: 'Konsultasi Guru', icon: MessageSquare, badge: unreadCount },
+      { id: 'docs', label: 'Buku Panduan', icon: HelpCircle },
+      { id: 'settings', label: 'Pengaturan', icon: Settings },
+    ];
+  }
+
 
   return (
     <>
@@ -60,11 +106,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand Logo */}
+        {/* Brand Logo - Clickable to return to Beranda */}
         <div className="h-20 px-6 flex items-center justify-between border-b border-slate-50">
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              onSelectTab('overview');
+              onCloseMobile();
+            }}
+            className="flex items-center gap-3 text-left hover:opacity-85 transition-opacity group cursor-pointer"
+            title="Kembali ke Beranda"
+          >
             {/* Coral-orange logo mark matching reference */}
-            <div className="w-9 h-9 rounded-xl bg-[#FFF1EB] flex items-center justify-center text-[#FF5A26] shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#FFF1EB] group-hover:bg-[#FFE5D9] flex items-center justify-center text-[#FF5A26] shadow-xs transition-colors">
               <svg
                 width="22"
                 height="22"
@@ -86,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 Nusantara LMS
               </span>
             </div>
-          </div>
+          </button>
 
           <button
             onClick={onCloseMobile}
@@ -166,6 +219,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* Logout Button */}
+        {onLogout && (
+          <div className="px-3 pb-3">
+            <button
+              onClick={() => {
+                onCloseMobile();
+                onLogout();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-rose-200/80 bg-rose-50/60 hover:bg-rose-100/80 text-rose-600 text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-101"
+              title="Keluar dari sesi saat ini"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-500" />
+              <span>Keluar Akun (Logout)</span>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
